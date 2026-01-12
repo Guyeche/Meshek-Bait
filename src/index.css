@@ -1,0 +1,18 @@
+@import "tailwindcss";
+
+@theme {
+  --color-primary: #a855f7;
+  --color-secondary: #ec4899;
+}
+
+/* Fix Dark Mode toggle for Tailwind v4 */
+@variant dark (&:where(.dark, .dark *));
+
+/* Hide scrollbar for smooth UI */
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+.no-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
