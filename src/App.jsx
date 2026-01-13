@@ -12,6 +12,8 @@ import {
 } from 'lucide-react';
 
 // --- YOUR FIREBASE CONFIGURATION ---
+// Note: For local development, it is best practice to use a .env file.
+// For this preview to work reliably, we are using the direct values here.
 const firebaseConfig = {
   apiKey: "AIzaSyC8O6g9bcLXeHCfIHLT6KiMYwVSCEPzN_E",
   authDomain: "grocery-app-702d5.firebaseapp.com",
@@ -244,7 +246,7 @@ const AddItemForm = memo(({ onAdd, lang, isRTL, isSubmitting, user }) => {
   );
 });
 
-const ItemRow = memo(({ item, index, onToggle, onDelete, onEdit, shoppingMode }) => {
+const ItemRow = memo(({ item, index, onToggle, onDelete, onEdit, shoppingMode, lang }) => {
   return (
     <div 
       className={`group relative flex items-center gap-4 p-4 bg-white dark:bg-slate-800 rounded-3xl shadow-sm border border-gray-100 dark:border-slate-700/50 transition-all duration-300 hover:shadow-md
@@ -261,11 +263,11 @@ const ItemRow = memo(({ item, index, onToggle, onDelete, onEdit, shoppingMode })
       </button>
       
       <div className="flex-grow min-w-0">
-        <div className={`text-lg font-bold truncate transition-colors ${item.completed ? 'line-through text-gray-400 dark:text-slate-500' : 'text-gray-800 dark:text-slate-200'}`}>
+        <div className={`text-lg font-medium truncate transition-colors ${item.completed ? 'line-through text-gray-400 dark:text-slate-500' : 'text-gray-800 dark:text-slate-200'}`}>
           {item.text}
         </div>
         <div className="text-xs font-medium text-gray-400 dark:text-slate-500 mt-0.5 flex items-center gap-2">
-           <span>{CATEGORIES_CONFIG[item.category]?.emoji || '🛒'} {CATEGORIES_CONFIG[item.category]?.en || 'Item'}</span>
+           <span>{CATEGORIES_CONFIG[item.category]?.emoji || '🛒'} {CATEGORIES_CONFIG[item.category]?.[lang] || 'Item'}</span>
            {item.quantity > 1 && (
              <span className="text-purple-600 dark:text-purple-400 bg-purple-50 dark:bg-purple-900/30 px-1.5 rounded text-[10px] font-bold">
                x{item.quantity}
@@ -290,7 +292,7 @@ export default function App() {
   const [isJoined, setIsJoined] = useState(() => !!localStorage.getItem('grocery_list_id'));
   
   const [viewMode, setViewMode] = useState(() => localStorage.getItem('grocery_view_mode') || 'flat');
-  const [lang, setLang] = useState(() => localStorage.getItem('grocery_lang') || 'en');
+  const [lang, setLang] = useState(() => localStorage.getItem('grocery_lang') || 'he');
   const [darkMode, setDarkMode] = useState(() => localStorage.getItem('grocery_dark_mode') === 'true');
   const [shoppingMode, setShoppingMode] = useState(false);
   
@@ -354,13 +356,8 @@ export default function App() {
         setError('');
       }, (err) => {
         setLoading(false);
-        console.error("Firestore Error:", err);
-        // CHANGED: Now explicitly shows permission errors so you know to fix the rules
-        if (err.code === 'permission-denied') {
-            setError("Database Locked: Update Firebase Rules");
-        } else {
-            setError("Sync paused. Checking connection...");
-        }
+        if (err.code !== 'permission-denied') setError("Sync paused.");
+        if (err.code === 'permission-denied') setError("Database Locked: Update Firebase Rules");
       }
     );
     return () => unsubscribe();
@@ -548,6 +545,7 @@ export default function App() {
                              onDelete={(id) => setDeleteId(id)} 
                              onEdit={(item) => { setEditingId(item.id); setEditText(item.text); }}
                              shoppingMode={shoppingMode}
+                             lang={lang}
                            />
                          )}
                        </div>
