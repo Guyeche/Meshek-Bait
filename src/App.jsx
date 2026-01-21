@@ -26,7 +26,8 @@ const firebaseConfig = {
 // Initialize Firebase
 const app = initializeApp(firebaseConfig);
 const auth = getAuth(app);
-const db = getFirestore(app);
+// Connect to the specific database 'meshek-bait'
+const db = getFirestore(app, "meshek-bait");
 
 // --- PERFORMANCE: Enable Offline Persistence ---
 try {
@@ -349,7 +350,8 @@ export default function App() {
   useEffect(() => {
     if (!user || !isJoined || !listId) return;
     setLoading(true);
-    const safeListId = listId.replace(/[^a-zA-Z0-9-_]/g, '_').toLowerCase();
+    // Trim list ID to prevent mismatch due to spaces
+    const safeListId = listId.trim().replace(/[^a-zA-Z0-9-_]/g, '_').toLowerCase();
     const q = collection(db, 'lists', safeListId, 'items');
 
     const unsubscribe = onSnapshot(q, (snapshot) => {
@@ -357,18 +359,25 @@ export default function App() {
         setItems(fetchedItems);
         setLoading(false);
         setError('');
+        
+        // Check for offline/cache status
+        if (snapshot.metadata.fromCache) {
+           console.log("Data from cache (offline or syncing)");
+        }
       }, (err) => {
+        console.error("Snapshot Error:", err);
         setLoading(false);
-        if (err.code !== 'permission-denied') setError("Sync paused.");
-        if (err.code === 'permission-denied') setError("Database Locked: Update Firebase Rules");
+        if (err.code === 'permission-denied') {
+            setError("Access Denied: Check Firestore Rules");
+        } else {
+            setError(`Sync Error: ${err.message}`);
+        }
       }
     );
     return () => unsubscribe();
   }, [user, isJoined, listId]);
 
   const handleAddItem = async (text, qty, category) => {
-    // Optimistic update: Do not wait for server confirmation to unblock UI.
-    // Firestore SDK handles local cache immediately.
     if (!user) {
         setIsSubmitting(true);
         try { await signInAnonymously(auth); } 
@@ -376,9 +385,8 @@ export default function App() {
         setIsSubmitting(false);
     }
     
-    const safeListId = listId.replace(/[^a-zA-Z0-9-_]/g, '_').toLowerCase();
+    const safeListId = listId.trim().replace(/[^a-zA-Z0-9-_]/g, '_').toLowerCase();
     
-    // Fire and forget - let Firestore handle the sync in background
     addDoc(collection(db, 'lists', safeListId, 'items'), {
       text, quantity: qty, category, completed: false, createdAt: serverTimestamp(), author: auth.currentUser?.uid
     }).catch((err) => {
@@ -388,14 +396,14 @@ export default function App() {
   };
 
   const toggleItem = async (itemId, currentStatus) => {
-    const safeListId = listId.replace(/[^a-zA-Z0-9-_]/g, '_').toLowerCase();
+    const safeListId = listId.trim().replace(/[^a-zA-Z0-9-_]/g, '_').toLowerCase();
     const itemRef = doc(db, 'lists', safeListId, 'items', itemId);
     await updateDoc(itemRef, { completed: !currentStatus });
   };
 
   const confirmDelete = async () => {
     if (!deleteId) return;
-    const safeListId = listId.replace(/[^a-zA-Z0-9-_]/g, '_').toLowerCase();
+    const safeListId = listId.trim().replace(/[^a-zA-Z0-9-_]/g, '_').toLowerCase();
     const itemRef = doc(db, 'lists', safeListId, 'items', deleteId);
     await deleteDoc(itemRef);
     setDeleteId(null);
@@ -403,7 +411,7 @@ export default function App() {
 
   const saveEdit = async () => {
     if (!editingId || !editText.trim()) return;
-    const safeListId = listId.replace(/[^a-zA-Z0-9-_]/g, '_').toLowerCase();
+    const safeListId = listId.trim().replace(/[^a-zA-Z0-9-_]/g, '_').toLowerCase();
     const itemRef = doc(db, 'lists', safeListId, 'items', editingId);
     await updateDoc(itemRef, { text: editText });
     setEditingId(null);
@@ -413,7 +421,7 @@ export default function App() {
   const handleJoin = (e) => {
     e.preventDefault();
     if (listId.trim().length < 3) return;
-    localStorage.setItem('grocery_list_id', listId);
+    localStorage.setItem('grocery_list_id', listId.trim());
     const currentHistory = JSON.parse(localStorage.getItem('grocery_list_history') || '[]');
     const newHistory = [listId, ...currentHistory.filter(item => item !== listId)].slice(0, 5);
     localStorage.setItem('grocery_list_history', JSON.stringify(newHistory));
