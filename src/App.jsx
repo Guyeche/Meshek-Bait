@@ -15,12 +15,12 @@ import {
 // Note: For local development, it is best practice to use a .env file.
 // For this preview to work reliably, we are using the direct values here.
 const firebaseConfig = {
-  apiKey: "AIzaSyC8O6g9bcLXeHCfIHLT6KiMYwVSCEPzN_E",
-  authDomain: "grocery-app-702d5.firebaseapp.com",
-  projectId: "grocery-app-702d5",
-  storageBucket: "grocery-app-702d5.firebasestorage.app",
-  messagingSenderId: "843213691832",
-  appId: "1:843213691832:web:ec2df97824c23e3b508d4d"
+  apiKey: import.meta.env.VITE_FIREBASE_API_KEY,
+  authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN,
+  projectId: import.meta.env.VITE_FIREBASE_PROJECT_ID,
+  storageBucket: import.meta.env.VITE_FIREBASE_STORAGE_BUCKET,
+  messagingSenderId: import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID,
+  appId: import.meta.env.VITE_FIREBASE_APP_ID
 };
 
 // Initialize Firebase
@@ -337,7 +337,10 @@ export default function App() {
   useEffect(() => {
     const initAuth = async () => {
       try { await signInAnonymously(auth); } 
-      catch (err) { setError("Network error"); }
+      catch (err) { 
+        console.error("Auth Error:", err);
+        setError("Network error: " + err.code + " - " + err.message); 
+      }
     };
     initAuth();
     onAuthStateChanged(auth, (u) => { setUser(u); if (u) setError(''); });
