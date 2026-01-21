@@ -367,19 +367,24 @@ export default function App() {
   }, [user, isJoined, listId]);
 
   const handleAddItem = async (text, qty, category) => {
-    setIsSubmitting(true);
+    // Optimistic update: Do not wait for server confirmation to unblock UI.
+    // Firestore SDK handles local cache immediately.
     if (!user) {
+        setIsSubmitting(true);
         try { await signInAnonymously(auth); } 
         catch(err) { setError(t.errorAdd); setIsSubmitting(false); return; }
+        setIsSubmitting(false);
     }
+    
     const safeListId = listId.replace(/[^a-zA-Z0-9-_]/g, '_').toLowerCase();
-    try {
-      await addDoc(collection(db, 'lists', safeListId, 'items'), {
-        text, quantity: qty, category, completed: false, createdAt: serverTimestamp(), author: auth.currentUser?.uid
-      });
-      setError('');
-    } catch (err) { setError(t.errorAdd); } 
-    finally { setIsSubmitting(false); }
+    
+    // Fire and forget - let Firestore handle the sync in background
+    addDoc(collection(db, 'lists', safeListId, 'items'), {
+      text, quantity: qty, category, completed: false, createdAt: serverTimestamp(), author: auth.currentUser?.uid
+    }).catch((err) => {
+      console.error("Error adding item:", err);
+      setError(t.errorAdd);
+    });
   };
 
   const toggleItem = async (itemId, currentStatus) => {
